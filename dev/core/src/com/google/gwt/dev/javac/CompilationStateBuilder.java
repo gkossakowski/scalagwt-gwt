@@ -60,6 +60,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 
 /**
@@ -490,13 +492,21 @@ public class CompilationStateBuilder {
   }
 
   private static byte[] readBytes(CompilationUnitBuilder cub) {
-    // TODO(stephenh) Somehow load forked scala-library bytecode
-    // https://github.com/scalagwt/scalagwt-gwt/issues/2
+    String scalaLibrary = System.getProperty("gwt.scalalibrary.path");
     String classFile = cub.getTypeName().replace('.', '/') + ".class";
     try {
-      ByteArrayOutputStream out = new ByteArrayOutputStream();
-      InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
+      File file = new File(scalaLibrary);
+      assert file.exists();
+      JarFile jarFile = new JarFile(file);
+      JarEntry jarEntry = jarFile.getJarEntry(classFile);
+      InputStream in;
+      if (jarEntry != null) {
+        in = jarFile.getInputStream(jarEntry);
+      } else {
+        in = Thread.currentThread().getContextClassLoader().getResourceAsStream(classFile);
+      }
       if (in != null) {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
         Util.copy(in, out); // does close
         return out.toByteArray();
       } else {
